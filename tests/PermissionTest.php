@@ -17,25 +17,16 @@ class PermissionTest extends TestCase
     }
 
     /** @test */
-    public function it_belongs_to_a_guard()
-    {
-        $permission = app(Permission::class)->create(['name' => 'can-edit', 'guard_name' => 'admin']);
-
-        $this->assertEquals('admin', $permission->guard_name);
-    }
-
-    /** @test */
-    public function it_belongs_to_the_default_guard_by_default()
-    {
-        $this->assertEquals($this->app['config']->get('auth.defaults.guard'), $this->testUserPermission->guard_name);
-    }
-
-    /** @test */
     public function it_has_user_models_of_the_right_class()
     {
         $this->testAdmin->givePermissionTo($this->testAdminPermission);
 
         $this->testUser->givePermissionTo($this->testUserPermission);
+
+//@TODO this is failing because the Model returned by the (default in this case) guard is different
+        $this->assertCount(1, $this->testAdminPermission->users);
+        $this->assertTrue($this->testAdminPermission->users->first()->is($this->testAdmin));
+        $this->assertInstanceOf(Admin::class, $this->testUserPermission->users->first());
 
         $this->assertCount(1, $this->testUserPermission->users);
         $this->assertTrue($this->testUserPermission->users->first()->is($this->testUser));

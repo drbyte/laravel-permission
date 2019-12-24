@@ -4,7 +4,6 @@ namespace Spatie\Permission\Test;
 
 use Spatie\Permission\Contracts\Role;
 use Spatie\Permission\Exceptions\RoleDoesNotExist;
-use Spatie\Permission\Exceptions\GuardDoesNotMatch;
 
 class HasRolesTest extends TestCase
 {
@@ -12,26 +11,6 @@ class HasRolesTest extends TestCase
     public function it_can_determine_that_the_user_does_not_have_a_role()
     {
         $this->assertFalse($this->testUser->hasRole('testRole'));
-
-        $role = app(Role::class)->findOrCreate('testRoleInWebGuard', 'web');
-
-        $this->assertFalse($this->testUser->hasRole($role));
-
-        $this->testUser->assignRole($role);
-        $this->assertTrue($this->testUser->hasRole($role));
-        $this->assertTrue($this->testUser->hasRole($role->name));
-        $this->assertTrue($this->testUser->hasRole($role->name, $role->guard_name));
-        $this->assertTrue($this->testUser->hasRole([$role->name, 'fakeRole'], $role->guard_name));
-        $this->assertTrue($this->testUser->hasRole($role->id, $role->guard_name));
-        $this->assertTrue($this->testUser->hasRole([$role->id, 'fakeRole'], $role->guard_name));
-
-        $this->assertFalse($this->testUser->hasRole($role->name, 'fakeGuard'));
-        $this->assertFalse($this->testUser->hasRole([$role->name, 'fakeRole'], 'fakeGuard'));
-        $this->assertFalse($this->testUser->hasRole($role->id, 'fakeGuard'));
-        $this->assertFalse($this->testUser->hasRole([$role->id, 'fakeRole'], 'fakeGuard'));
-
-        $role = app(Role::class)->findOrCreate('testRoleInWebGuard2', 'web');
-        $this->assertFalse($this->testUser->hasRole($role));
     }
 
     /** @test */
@@ -138,22 +117,6 @@ class HasRolesTest extends TestCase
         $this->expectException(RoleDoesNotExist::class);
 
         $this->testUser->assignRole('evil-emperor');
-    }
-
-    /** @test */
-    public function it_can_only_assign_roles_from_the_correct_guard()
-    {
-        $this->expectException(RoleDoesNotExist::class);
-
-        $this->testUser->assignRole('testAdminRole');
-    }
-
-    /** @test */
-    public function it_throws_an_exception_when_assigning_a_role_from_a_different_guard()
-    {
-        $this->expectException(GuardDoesNotMatch::class);
-
-        $this->testUser->assignRole($this->testAdminRole);
     }
 
     /** @test */
@@ -267,18 +230,6 @@ class HasRolesTest extends TestCase
     }
 
     /** @test */
-    public function it_throws_an_exception_when_syncing_a_role_from_another_guard()
-    {
-        $this->expectException(RoleDoesNotExist::class);
-
-        $this->testUser->syncRoles('testRole', 'testAdminRole');
-
-        $this->expectException(GuardDoesNotMatch::class);
-
-        $this->testUser->syncRoles('testRole', $this->testAdminRole);
-    }
-
-    /** @test */
     public function it_deletes_pivot_table_entries_when_deleting_models()
     {
         $user = User::create(['email' => 'user@test.com']);
@@ -376,49 +327,18 @@ class HasRolesTest extends TestCase
     }
 
     /** @test */
-    public function it_can_scope_against_a_specific_guard()
-    {
-        $user1 = User::create(['email' => 'user1@test.com']);
-        $user2 = User::create(['email' => 'user2@test.com']);
-        $user1->assignRole('testRole');
-        $user2->assignRole('testRole2');
-
-        $scopedUsers1 = User::role('testRole', 'web')->get();
-
-        $this->assertEquals($scopedUsers1->count(), 1);
-
-        $user3 = Admin::create(['email' => 'user1@test.com']);
-        $user4 = Admin::create(['email' => 'user1@test.com']);
-        $user5 = Admin::create(['email' => 'user2@test.com']);
-        $testAdminRole2 = app(Role::class)->create(['name' => 'testAdminRole2', 'guard_name' => 'admin']);
-        $user3->assignRole($this->testAdminRole);
-        $user4->assignRole($this->testAdminRole);
-        $user5->assignRole($testAdminRole2);
-        $scopedUsers2 = Admin::role('testAdminRole', 'admin')->get();
-        $scopedUsers3 = Admin::role('testAdminRole2', 'admin')->get();
-
-        $this->assertEquals($scopedUsers2->count(), 2);
-        $this->assertEquals($scopedUsers3->count(), 1);
-    }
-
-    /** @test */
-    public function it_throws_an_exception_when_trying_to_scope_a_role_from_another_guard()
-    {
-        $this->expectException(RoleDoesNotExist::class);
-
-        User::role('testAdminRole')->get();
-
-        $this->expectException(GuardDoesNotMatch::class);
-
-        User::role($this->testAdminRole)->get();
-    }
-
-    /** @test */
     public function it_throws_an_exception_when_trying_to_scope_a_non_existing_role()
     {
         $this->expectException(RoleDoesNotExist::class);
 
         User::role('role not defined')->get();
+    }
+
+    /** @test */
+    public function it_can_scope_against_a_specific_model()
+    {
+$this->markTestIncomplete();
+// @TODO - lookup Role::users(ModelClass)
     }
 
     /** @test */
@@ -465,31 +385,12 @@ class HasRolesTest extends TestCase
         $this->testUser->assignRole($this->testUserRole);
 
         $this->assertTrue($this->testUser->hasAllRoles('testRole'));
-        $this->assertTrue($this->testUser->hasAllRoles('testRole', 'web'));
-        $this->assertFalse($this->testUser->hasAllRoles('testRole', 'fakeGuard'));
 
         $this->assertFalse($this->testUser->hasAllRoles(['testRole', 'second role']));
-        $this->assertFalse($this->testUser->hasAllRoles(['testRole', 'second role'], 'web'));
 
         $this->testUser->assignRole('second role');
 
         $this->assertTrue($this->testUser->hasAllRoles(['testRole', 'second role']));
-        $this->assertTrue($this->testUser->hasAllRoles(['testRole', 'second role'], 'web'));
-        $this->assertFalse($this->testUser->hasAllRoles(['testRole', 'second role'], 'fakeGuard'));
-    }
-
-    /** @test */
-    public function it_can_determine_that_a_user_does_not_have_a_role_from_another_guard()
-    {
-        $this->assertFalse($this->testUser->hasRole('testAdminRole'));
-
-        $this->assertFalse($this->testUser->hasRole($this->testAdminRole));
-
-        $this->testUser->assignRole('testRole');
-
-        $this->assertTrue($this->testUser->hasAnyRole(['testRole', 'testAdminRole']));
-
-        $this->assertFalse($this->testUser->hasAnyRole('testAdminRole', $this->testAdminRole));
     }
 
     /** @test */

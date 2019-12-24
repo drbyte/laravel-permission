@@ -169,23 +169,6 @@ class CacheTest extends TestCase
     }
 
     /** @test */
-    public function the_cache_should_differentiate_by_guard_name()
-    {
-        $this->expectException(PermissionDoesNotExist::class);
-
-        $this->testUserRole->givePermissionTo(['edit-articles', 'web']);
-        $this->testUser->assignRole('testRole');
-
-        $this->resetQueryCount();
-        $this->assertTrue($this->testUser->hasPermissionTo('edit-articles', 'web'));
-        $this->assertQueryCount($this->cache_init_count + $this->cache_load_count + $this->cache_run_count + $this->cache_relations_count);
-
-        $this->resetQueryCount();
-        $this->assertFalse($this->testUser->hasPermissionTo('edit-articles', 'admin'));
-        $this->assertQueryCount(1); // 1 for first lookup of this permission with this guard
-    }
-
-    /** @test */
     public function get_all_permissions_should_use_the_cache()
     {
         $this->testUserRole->givePermissionTo($expected = ['edit-articles', 'edit-news']);
