@@ -69,4 +69,33 @@ class MultipleGuardsTest extends TestCase
         // Manager test user has the $guard_name property set to 'web'
         $this->assertFalse($user->checkPermissionTo('do_jwt', 'web'));
     }
+
+    /** @test */
+    public function it_can_authorize_when_check_guard_names_flag_is_disabled()
+    {
+        config('permission.check_guard_names', false);
+
+        $this->testUser->givePermissionTo(app(Permission::class)::create([
+            'name' => 'do_general',
+        ]));
+
+        $this->testUser->givePermissionTo(app(Permission::class)::create([
+            'name' => 'do_web',
+            'guard_name' => 'web',
+        ]));
+
+        $this->testUser->givePermissionTo(app(Permission::class)::create([
+            'name' => 'do_api',
+            'guard_name' => 'api',
+        ]));
+
+        $this->assertTrue($this->testUser->checkPermissionTo('do_general'));
+        $this->assertTrue($this->testUser->checkPermissionTo('do_web'));
+        // web guard works cuz web is built-in default
+        $this->assertTrue($this->testUser->checkPermissionTo('do_web', 'web'));
+        // api guard works here because we're asking for the guard that the permission was created for
+        $this->assertTrue($this->testUser->checkPermissionTo('do_api', 'api'));
+        // this works because the config guard check ignores the guard
+        $this->assertTrue($this->testUser->checkPermissionTo('do_api'));
+    }
 }

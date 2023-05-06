@@ -83,8 +83,19 @@ class Permission extends Model implements PermissionContract
      */
     public static function findByName(string $name, $guardName = null): PermissionContract
     {
-        $guardName = $guardName ?? Guard::getDefaultName(static::class);
-        $permission = static::getPermission(['name' => $name, 'guard_name' => $guardName]);
+        $attributes = ['name' => $name];
+
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? Guard::getDefaultName(static::class);
+        } else {
+            $guardName = null;
+        }
+
+        if ($guardName) {
+            $attributes['guard_name'] = $guardName;
+        }
+
+        $permission = static::getPermission($attributes);
         if (! $permission) {
             throw PermissionDoesNotExist::create($name, $guardName);
         }
@@ -102,8 +113,19 @@ class Permission extends Model implements PermissionContract
      */
     public static function findById($id, $guardName = null): PermissionContract
     {
-        $guardName = $guardName ?? Guard::getDefaultName(static::class);
-        $permission = static::getPermission([(new static())->getKeyName() => $id, 'guard_name' => $guardName]);
+        $attributes = [(new static())->getKeyName() => $id];
+
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? Guard::getDefaultName(static::class);
+        } else {
+            $guardName = null;
+        }
+
+        if ($guardName) {
+            $attributes['guard_name'] = $guardName;
+        }
+
+        $permission = static::getPermission($attributes);
 
         if (! $permission) {
             throw PermissionDoesNotExist::withId($id, $guardName);
@@ -119,11 +141,22 @@ class Permission extends Model implements PermissionContract
      */
     public static function findOrCreate(string $name, $guardName = null): PermissionContract
     {
-        $guardName = $guardName ?? Guard::getDefaultName(static::class);
-        $permission = static::getPermission(['name' => $name, 'guard_name' => $guardName]);
+        $attributes = ['name' => $name];
+
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? Guard::getDefaultName(static::class);
+        } else {
+            $guardName = null;
+        }
+
+        if ($guardName) {
+            $attributes['guard_name'] = $guardName;
+        }
+
+        $permission = static::getPermission($attributes);
 
         if (! $permission) {
-            return static::query()->create(['name' => $name, 'guard_name' => $guardName]);
+            return static::query()->create($attributes);
         }
 
         return $permission;

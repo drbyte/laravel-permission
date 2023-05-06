@@ -71,20 +71,26 @@ trait HasRoles
      * @param  string|int|array|Role|Collection  $roles
      * @param  string  $guard
      */
-    public function scopeRole(Builder $query, $roles, $guard = null): Builder
+    public function scopeRole(Builder $query, $roles, $guardName = null): Builder
     {
         if ($roles instanceof Collection) {
             $roles = $roles->all();
         }
 
-        $roles = array_map(function ($role) use ($guard) {
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? $this->getDefaultGuardName();
+        } else {
+            $guardName = null;
+        }
+
+        $roles = array_map(function ($role) use ($guardName) {
             if ($role instanceof Role) {
                 return $role;
             }
 
             $method = is_int($role) || PermissionRegistrar::isUid($role) ? 'findById' : 'findByName';
 
-            return $this->getRoleClass()::{$method}($role, $guard ?: $this->getDefaultGuardName());
+            return $this->getRoleClass()::{$method}($role, $guardName);
         }, Arr::wrap($roles));
 
         $roleClass = $this->getRoleClass();
@@ -202,7 +208,7 @@ trait HasRoles
      *
      * @param  string|int|array|Role|Collection|\BackedEnum  $roles
      */
-    public function hasRole($roles, string $guard = null): bool
+    public function hasRole($roles, string $guardName = null): bool
     {
         $this->loadMissing('roles');
 
@@ -214,18 +220,22 @@ trait HasRoles
             $roles = $roles->value;
         }
 
+        if (! config('permission.check_guard_names')) {
+            $guardName = null;
+        }
+
         if (is_int($roles) || PermissionRegistrar::isUid($roles)) {
             $roleClass = $this->getRoleClass();
             $key = (new $roleClass())->getKeyName();
 
-            return $guard
-                ? $this->roles->where('guard_name', $guard)->contains($key, $roles)
+            return $guardName
+                ? $this->roles->where('guard_name', $guardName)->contains($key, $roles)
                 : $this->roles->contains($key, $roles);
         }
 
         if (is_string($roles)) {
-            return $guard
-                ? $this->roles->where('guard_name', $guard)->contains('name', $roles)
+            return $guardName
+                ? $this->roles->where('guard_name', $guardName)->contains('name', $roles)
                 : $this->roles->contains('name', $roles);
         }
 
@@ -235,7 +245,7 @@ trait HasRoles
 
         if (is_array($roles)) {
             foreach ($roles as $role) {
-                if ($this->hasRole($role, $guard)) {
+                if ($this->hasRole($role, $guardName)) {
                     return true;
                 }
             }
@@ -244,7 +254,7 @@ trait HasRoles
         }
 
         if ($roles instanceof Collection) {
-            return $roles->intersect($guard ? $this->roles->where('guard_name', $guard) : $this->roles)->isNotEmpty();
+            return $roles->intersect($guardName ? $this->roles->where('guard_name', $guardName) : $this->roles)->isNotEmpty();
         }
 
         throw new \TypeError('Unsupported type for $roles parameter to hasRole().');
@@ -267,7 +277,7 @@ trait HasRoles
      *
      * @param  string|array|Role|Collection|\BackedEnum  $roles
      */
-    public function hasAllRoles($roles, string $guard = null): bool
+    public function hasAllRoles($roles, string $guardName = null): bool
     {
         $this->loadMissing('roles');
 
@@ -279,9 +289,13 @@ trait HasRoles
             $roles = $this->convertPipeToArray($roles);
         }
 
+        if (! config('permission.check_guard_names')) {
+            $guardName = null;
+        }
+
         if (is_string($roles)) {
-            return $guard
-                ? $this->roles->where('guard_name', $guard)->contains('name', $roles)
+            return $guardName
+                ? $this->roles->where('guard_name', $guardName)->contains('name', $roles)
                 : $this->roles->contains('name', $roles);
         }
 
@@ -298,8 +312,8 @@ trait HasRoles
         });
 
         return $roles->intersect(
-            $guard
-                ? $this->roles->where('guard_name', $guard)->pluck('name')
+            $guardName
+                ? $this->roles->where('guard_name', $guardName)->pluck('name')
                 : $this->getRoleNames()
         ) == $roles;
     }
@@ -352,12 +366,14 @@ trait HasRoles
             $role = $role->value;
         }
 
+        $guardName = config('permission.check_guard_names') ? $this->getDefaultGuardName() : null;
+
         if (is_int($role) || PermissionRegistrar::isUid($role)) {
-            return $this->getRoleClass()::findById($role, $this->getDefaultGuardName());
+            return $this->getRoleClass()::findById($role, $guardName);
         }
 
         if (is_string($role)) {
-            return $this->getRoleClass()::findByName($role, $this->getDefaultGuardName());
+            return $this->getRoleClass()::findByName($role, $guardName);
         }
 
         return $role;

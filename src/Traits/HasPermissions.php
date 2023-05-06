@@ -131,7 +131,13 @@ trait HasPermissions
             $permissions = $permissions->all();
         }
 
-        return array_map(function ($permission) {
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? $this->getDefaultGuardName();
+        } else {
+            $guardName = null;
+        }
+
+        return array_map(function ($permission) use ($guardName) {
             if ($permission instanceof Permission) {
                 return $permission;
             }
@@ -142,7 +148,7 @@ trait HasPermissions
 
             $method = is_int($permission) || PermissionRegistrar::isUid($permission) ? 'findById' : 'findByName';
 
-            return $this->getPermissionClass()::{$method}($permission, $this->getDefaultGuardName());
+            return $this->getPermissionClass()::{$method}($permission, $guardName);
         }, Arr::wrap($permissions));
     }
 
@@ -160,18 +166,18 @@ trait HasPermissions
             $permission = $permission->value;
         }
 
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? $this->getDefaultGuardName();
+        } else {
+            $guardName = null;
+        }
+
         if (is_int($permission) || PermissionRegistrar::isUid($permission)) {
-            $permission = $this->getPermissionClass()::findById(
-                $permission,
-                $guardName ?? $this->getDefaultGuardName()
-            );
+            $permission = $this->getPermissionClass()::findById($permission, $guardName);
         }
 
         if (is_string($permission)) {
-            $permission = $this->getPermissionClass()::findByName(
-                $permission,
-                $guardName ?? $this->getDefaultGuardName()
-            );
+            $permission = $this->getPermissionClass()::findByName($permission, $guardName);
         }
 
         if (! $permission instanceof Permission) {
@@ -208,7 +214,11 @@ trait HasPermissions
      */
     protected function hasWildcardPermission($permission, $guardName = null): bool
     {
-        $guardName = $guardName ?? $this->getDefaultGuardName();
+        if (config('permission.check_guard_names')) {
+            $guardName = $guardName ?? $this->getDefaultGuardName();
+        } else {
+            $guardName = null;
+        }
 
         if ($permission instanceof \BackedEnum) {
             $permission = $permission->value;
@@ -229,7 +239,7 @@ trait HasPermissions
         $WildcardPermissionClass = $this->getWildcardClass();
 
         foreach ($this->getAllPermissions() as $userPermission) {
-            if ($guardName !== $userPermission->guard_name) {
+            if (config('permission.check_guard_names') && $guardName !== $userPermission->guard_name) {
                 continue;
             }
 
@@ -467,12 +477,14 @@ trait HasPermissions
             $permissions = $permissions->value;
         }
 
+        $guardName = config('permission.check_guard_names') ? $this->getDefaultGuardName() : null;
+
         if (is_int($permissions) || PermissionRegistrar::isUid($permissions)) {
-            return $this->getPermissionClass()::findById($permissions, $this->getDefaultGuardName());
+            return $this->getPermissionClass()::findById($permissions, $guardName);
         }
 
         if (is_string($permissions)) {
-            return $this->getPermissionClass()::findByName($permissions, $this->getDefaultGuardName());
+            return $this->getPermissionClass()::findByName($permissions, $guardName);
         }
 
         if (is_array($permissions)) {
@@ -484,9 +496,13 @@ trait HasPermissions
                 return is_a($permission, Permission::class) ? $permission->name : $permission;
             }, $permissions);
 
-            return $this->getPermissionClass()::whereIn('name', $permissions)
-                ->whereIn('guard_name', $this->getGuardNames())
-                ->get();
+            $query = $this->getPermissionClass()::whereIn('name', $permissions);
+
+            if (config('permission.check_guard_names')) {
+                $query = $query->whereIn('guard_name', $this->getGuardNames());
+            }
+
+            return $query->get();
         }
 
         return $permissions;
@@ -499,6 +515,10 @@ trait HasPermissions
      */
     protected function ensureModelSharesGuard($roleOrPermission)
     {
+        if (! config('permission.check_guard_names')) {
+            return true;
+        }
+
         if (! $this->getGuardNames()->contains($roleOrPermission->guard_name)) {
             throw GuardDoesNotMatch::create($roleOrPermission->guard_name, $this->getGuardNames());
         }
