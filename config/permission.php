@@ -5,7 +5,7 @@ return [
     /*
      * By default, this package requires creating separate roles/permissions
      * for each guard_name you wish to authenticate against. If your app
-     * does not actually need to treat separate guards with different 
+     * does not actually need to treat separate guards with different
      * permissions, you can set this to false to simplify things.
      */
 
