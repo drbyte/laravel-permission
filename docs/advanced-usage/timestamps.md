@@ -5,11 +5,19 @@ weight: 10
 
 ## Excluding Timestamps from JSON
 
-If you want to exclude timestamps from JSON output of role/permission pivots, you can extend the Role and Permission models into your own App namespace and mark the pivot as hidden:
+If you want to exclude timestamps from JSON output of role/permission pivots, you can extend the Role and Permission models into your own App and mark the pivot as hidden:
 
 ```php
     protected $hidden = ['pivot'];
  ```
+
+Or if you don't want to extend this package's models, another approach could be to add this to your `AppServiceProvider`'s `boot()` method (adapt for Permission model as well, if needed):
+
+```php
+\Spatie\Permission\Models\Role::retrieved(function ($role) {
+     $role->makeHidden(['pivot']);
+});
+```
 
 ## Adding Timestamps to Pivots
 
